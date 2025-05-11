@@ -164,23 +164,27 @@ class Pix2PixModel(torch.nn.Module):
 
         # ──────────── GAN/Feature Matching Loss ──────────────
         # 1. GAN损失，按多判别器加和或平均
-        gan_loss_weights = [0.05, 0.15, 1.0]
+        # 多尺度判别器有不同数量的head
         G_losses['GAN'] = 0
-        for i in range(num_scales):
-            # 若担心权重可能和num_scales不符，可用min确保不越界
-            weight = gan_loss_weights[i] if i < len(gan_loss_weights) else 1.0
-            G_losses['GAN'] += self.criterionGAN(pred_fake[i], True, for_discriminator=False) * weight
-        # 可去掉均值化（除以num_scales），因为权重之和为1
+        gan_loss_weights = [0.05, 0.15, 1.0, 1.0]
+        cnt = 0
+        for di, pred_d in enumerate(pred_fake):    # di: discriminator idx，pred_d: list of heads
+            for hi, head in enumerate(pred_d):     # hi: head idx
+                # head: list，每一层输出，最后一层是判别结果
+                # head[-1] 是判别结果
+                weight = gan_loss_weights[cnt] if cnt < len(gan_loss_weights) else 1.0
+                G_losses['GAN'] += self.criterionGAN(head[-1], True, for_discriminator=False) * weight
+                cnt += 1
 
         # 2. Feature Matching Loss
         if not self.opt.no_ganFeat_loss:
             GAN_Feat_loss = self.FloatTensor(1).fill_(0)
             # for k in range(num_scales):
-            num_D = len(pred_fake[0])
+            num_D = len(pred_fake[-1])
             for i in range(num_D):
-                num_intermediate_outputs = len(pred_fake[i]) - 1
+                num_intermediate_outputs = len(pred_fake[-1][i]) - 1
                 for j in range(num_intermediate_outputs):
-                    loss = self.criterionFeat(pred_fake[num_scales-1][i][j], pred_real[num_scales-1][i][j].detach())
+                    loss = self.criterionFeat(pred_fake[-1][i][j], pred_real[-1][i][j].detach())
                     GAN_Feat_loss += loss * self.opt.lambda_feat / num_D
             G_losses['GAN_Feat'] = GAN_Feat_loss
 
