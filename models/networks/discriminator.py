@@ -27,13 +27,17 @@ class MultiscaleDiscriminator(BaseNetwork):
 
         return parser
 
-    def __init__(self, opt):
+    def __init__(self, opt, layer_num = 2):
         super().__init__()
         self.opt = opt
 
-        for i in range(opt.num_D):
+        if layer_num == 2:
+            for i in range(opt.num_D):
+                subnetD = self.create_single_discriminator(opt)
+                self.add_module('discriminator_%d' % i, subnetD)
+        else:
             subnetD = self.create_single_discriminator(opt)
-            self.add_module('discriminator_%d' % i, subnetD)
+            self.add_module('discriminator_%d' % 0, subnetD)
 
     def create_single_discriminator(self, opt):
         subarch = opt.netD_subarch

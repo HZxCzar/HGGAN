@@ -37,8 +37,12 @@ def modify_commandline_options(parser, is_train):
     return parser
 
 
-def create_network(cls, opt):
-    net = cls(opt)
+def create_network(cls, opt, layer_level=None):
+    net = None
+    if layer_level is not None:
+        net = cls(opt, layer_level)
+    else:
+        net = cls(opt)
     net.print_network()
     if len(opt.gpu_ids) > 0:
         assert(torch.cuda.is_available())
@@ -55,7 +59,7 @@ def define_G(opt):
 def define_D(opt):
     netD_cls = find_network_using_name(opt.netD, 'discriminator')
     return torch.nn.ModuleList([
-        create_network(netD_cls, opt) for _ in range(3)
+        create_network(netD_cls, opt, i) for i in range(3)
     ])
 
 

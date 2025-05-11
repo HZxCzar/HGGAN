@@ -164,7 +164,7 @@ class Pix2PixModel(torch.nn.Module):
 
         # ──────────── GAN/Feature Matching Loss ──────────────
         # 1. GAN损失，按多判别器加和或平均
-        gan_loss_weights = [0.1, 0.2, 1.0]
+        gan_loss_weights = [0.05, 0.15, 1.0]
         G_losses['GAN'] = 0
         for i in range(num_scales):
             # 若担心权重可能和num_scales不符，可用min确保不越界
@@ -188,10 +188,6 @@ class Pix2PixModel(torch.nn.Module):
         if not self.opt.no_vgg_loss:
             # 推荐只对最高分辨率
             G_losses['VGG'] = self.criterionVGG(fake_images[-1], real_image) * self.opt.lambda_vgg
-            # # 或者多尺度，注释解开
-            # G_losses['VGG'] = sum(
-            #     self.criterionVGG(fake_images[i], real_images[i]) for i in range(num_scales)
-            # ) / num_scales * self.opt.lambda_vgg
 
         return G_losses, fake_images
 
