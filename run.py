@@ -4,7 +4,6 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 """
 
 import sys
-import time
 import random
 import torch
 import numpy as np
@@ -28,8 +27,9 @@ def main():
     dataloader = data.create_dataloader(opt)
     
     # 创建 Replay Buffer
-    replay_buffer = ReplayBuffer(max_size=opt.replay_buffer_size, 
-                                replace_prob=opt.replay_replace_prob)
+    if opt.use_replay_buffer:
+        replay_buffer = ReplayBuffer(max_size=opt.replay_buffer_size, 
+                                    replace_prob=opt.replay_replace_prob)
     
     # 创建模型训练器
     trainer = Pix2PixTrainer(opt)
@@ -40,24 +40,19 @@ def main():
     # 创建可视化工具
     visualizer = Visualizer(opt)
     
-    # # 初始追踪时间
-    # data_loading_time = 0
-    # training_time = 0
-    # buffer_time = 0
     
     # 预填充缓冲区
-    # print("预填充 Replay Buffer...")
-    # prefill_count = min(1000, opt.replay_buffer_size)
-    # prefill_iter = iter(dataloader)
-    # for _ in range(prefill_count):
-    #     try:
-    #         # start_time = time.time()
-    #         data_i = next(prefill_iter)
-    #         # data_loading_time += time.time() - start_time
-    #         replay_buffer.add(data_i)
-    #     except StopIteration:
-    #         break
-    # print(f"Replay Buffer 已预填充 {replay_buffer.size()} 批次数据")
+    if opt.use_replay_buffer:
+        print("预填充 Replay Buffer...")
+        prefill_count = min(1000, opt.replay_buffer_size)
+        prefill_iter = iter(dataloader)
+        for _ in range(prefill_count):
+            try:
+                data_i = next(prefill_iter)
+                replay_buffer.add(data_i)
+            except StopIteration:
+                break
+        print(f"Replay Buffer 已预填充 {replay_buffer.size()} 批次数据")
     
     # 主训练循环
     for epoch in iter_counter.training_epochs():
@@ -65,11 +60,9 @@ def main():
         for i, data_i in enumerate(dataloader, start=iter_counter.epoch_iter):
             iter_counter.record_one_iteration()
             
-            # 记录数据加载时间
-            # data_time_start = time.time()
-            
             # 添加新数据到缓冲区
-            # replay_buffer.add(data_i)
+            if opt.use_replay_buffer:
+                replay_buffer.add(data_i)
             
             # Training
             # train generator
@@ -103,12 +96,11 @@ def main():
                 visualizer.plot_current_errors(losses, iter_counter.total_steps_so_far)
                 
                 # 打印 Replay Buffer 统计信息
-                buffer_stats = replay_buffer.get_stats()
-                print(f"Replay Buffer: 大小={buffer_stats['current_size']}/{opt.replay_buffer_size}, "
-                      f"添加={buffer_stats['additions']}, 采样={buffer_stats['samples']}, "
-                      f"替换={buffer_stats['replacements']}")
-                # print(f"时间统计: 数据加载={data_loading_time:.2f}s, "
-                #       f"缓冲区操作={buffer_time:.2f}s, 训练={training_time:.2f}s")
+                if opt.use_replay_buffer:
+                    buffer_stats = replay_buffer.get_stats()
+                    print(f"Replay Buffer: 大小={buffer_stats['current_size']}/{opt.replay_buffer_size}, "
+                          f"添加={buffer_stats['additions']}, 采样={buffer_stats['samples']}, "
+                          f"替换={buffer_stats['replacements']}")
             
             # 保存模型
             if iter_counter.needs_saving():
