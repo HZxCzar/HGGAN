@@ -166,20 +166,13 @@ class Pix2PixModel(torch.nn.Module):
         # 1. GAN损失，按多判别器加和或平均
         # 多尺度判别器有不同数量的head
         G_losses['GAN'] = 0
-        gan_loss_weights = [0.05, 0.15, 1.0, 1.0]
-        cnt = 0
-        for di, pred_d in enumerate(pred_fake):    # di: discriminator idx，pred_d: list of heads
-            for hi, head in enumerate(pred_d):     # hi: head idx
-                # head: list，每一层输出，最后一层是判别结果
-                # head[-1] 是判别结果
-                weight = gan_loss_weights[cnt] if cnt < len(gan_loss_weights) else 1.0
-                G_losses['GAN'] += self.criterionGAN(head[-1], True, for_discriminator=False) * weight
-                cnt += 1
+        gan_loss_weights = [0.05, 0.15, 1.0]
+        for i in range(num_scales):
+            G_losses['GAN'] += self.criterionGAN(pred_fake[i], True, for_discriminator=False) * gan_loss_weights[i]
 
         # 2. Feature Matching Loss
         if not self.opt.no_ganFeat_loss:
             GAN_Feat_loss = self.FloatTensor(1).fill_(0)
-            # for k in range(num_scales):
             num_D = len(pred_fake[-1])
             for i in range(num_D):
                 num_intermediate_outputs = len(pred_fake[-1][i]) - 1
